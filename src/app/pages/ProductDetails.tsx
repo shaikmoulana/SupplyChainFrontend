@@ -1,12 +1,83 @@
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Package, TrendingUp, Clock, AlertCircle, Target } from 'lucide-react';
 import { products, getTotalPredictedDemand, getAverageDailyDemand, getRecommendedReorderQuantity } from '../data/mockData';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart, ComposedChart } from 'recharts';
 
+interface Prediction {
+  day: string;
+  date: string;
+  predictedDemand: number;
+  confidence: number;
+}
+
+interface ProductDetailsUI {
+  id: number;
+  name: string;
+  category: string;
+  unitPrice: number;
+  onHand: number;
+  reorderLevel: number;
+  leadTime: number;
+  next7DaysPredictions: Prediction[];
+}
+
 export function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const product = products.find(p => p.id === id);
+  const [product, setProduct] = useState<ProductDetailsUI | null>(null);
+  const [loading, setLoading] = useState(true);
+
+   useEffect(() => {
+    if (id) loadProductDetails(Number(id));
+  }, [id]);
+
+  const loadProductDetails = async (productId: number) => {
+    try {
+      const [productRes, inventoryRes, forecastRes] = await Promise.all([
+        fetch('http://localhost:5281/api/Product'),
+        fetch('http://localhost:5281/api/inventory/recommendations'),
+        fetch(`http://localhost:5281/api/forecast/${productId}`)
+      ]);
+
+      const products = await productRes.json();
+      const inventory = await inventoryRes.json();
+      const forecast = await forecastRes.json();
+
+      const p = products.find((x: any) => x.productId === productId);
+      const inv = inventory.find((i: any) => i.productId === productId);
+
+      
+      if (!p) return;
+
+      const predictions: Prediction[] = forecast.map((f: any, index: number) => ({
+        day: new Date(f.date).toLocaleDateString('en-US', { weekday: 'short' }),
+        date: new Date(f.date).toLocaleDateString(),
+        predictedDemand: Math.round(f.predictedQty),
+        confidence: 90 + (index % 5) // mock confidence until backend provides it
+      }));
+
+      setProduct({
+        id: p.productId,
+        name: p.productName,
+        category: p.category,
+        unitPrice: p.unitPrice,
+        onHand: inv?.currentStock ?? 0,
+        reorderLevel: inv?.recommendedReorderQty ?? 0,
+        leadTime: 7,
+        next7DaysPredictions: predictions
+      });
+    } catch (err) {
+      console.error('Failed to load product details', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <p className="text-gray-500 dark:text-gray-400">Loading product...</p>;
+  }
+
 
   if (!product) {
     return (
@@ -28,9 +99,14 @@ export function ProductDetails() {
     );
   }
 
-  const totalPredicted = getTotalPredictedDemand(product);
-  const avgDailyDemand = getAverageDailyDemand(product);
-  const recommendedQty = getRecommendedReorderQuantity(product);
+
+  // 🔢 Derived metrics (replacing mockData helpers)
+  const totalPredicted = product.next7DaysPredictions.reduce(
+    (sum, p) => sum + p.predictedDemand,
+    0
+  );
+  const avgDailyDemand = totalPredicted / 7;
+  const recommendedQty = Math.max(totalPredicted - product.onHand, 0);
   const needsReorder = recommendedQty > 0;
   const daysOfStock = product.onHand / avgDailyDemand;
 
@@ -118,8 +194,8 @@ export function ProductDetails() {
           <ComposedChart data={product.next7DaysPredictions}>
             <defs>
               <linearGradient id={`colorDemand${product.id}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={product.id === 'A' ? '#3b82f6' : '#8b5cf6'} stopOpacity={0.3}/>
-                <stop offset="95%" stopColor={product.id === 'A' ? '#3b82f6' : '#8b5cf6'} stopOpacity={0}/>
+                <stop offset="5%" stopColor={product.id === 1 ? '#3b82f6' : '#8b5cf6'} stopOpacity={0.3}/>
+                <stop offset="95%" stopColor={product.id === 1 ? '#3b82f6' : '#8b5cf6'} stopOpacity={0}/>
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
@@ -154,11 +230,11 @@ export function ProductDetails() {
               yAxisId="left"
               type="monotone" 
               dataKey="predictedDemand" 
-              stroke={product.id === 'A' ? '#3b82f6' : '#8b5cf6'}
+              stroke={product.id === 1 ? '#3b82f6' : '#8b5cf6'}
               strokeWidth={3}
               fill={`url(#colorDemand${product.id})`}
               name="Predicted Demand"
-              dot={{ fill: product.id === 'A' ? '#3b82f6' : '#8b5cf6', r: 6 }}
+              dot={{ fill: product.id === 1 ? '#3b82f6' : '#8b5cf6', r: 6 }}
             />
             <Line 
               yAxisId="right"

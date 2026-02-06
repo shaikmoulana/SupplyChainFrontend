@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { Dashboard } from './pages/Dashboard';
-import { Products } from './pages/Products';
+import  {Products}  from './pages/Products';
 import { ProductDetails } from './pages/ProductDetails';
 import { Forecast } from './pages/Forecast';
 import { Recommendations } from './pages/Recommendations';
