@@ -1,16 +1,175 @@
 import { AlertCircle, Clock, TrendingUp, Package, CheckCircle, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { recommendedReorders, products, getTotalPredictedDemand, getAverageDailyDemand } from '../data/mockData';
+import axios from 'axios';
+import React, { useMemo } from 'react';
+
+interface Product {
+  productId: number;
+  productName: string;
+  unitPrice: number;
+}
+
+interface Forecast {
+  date: string;
+  predictedQty: number;
+}
+
+interface InventoryRecommendation {
+  productId: number;
+  currentStock: number;
+  reorderLevel: number;
+  leadTimeDays: number;
+  status: 'RISK' | 'OK';
+}
+
+interface RecommendationItem {
+  productId: number;
+  name: string;
+  currentStock: number;
+  leadTime: number;
+  daysOfStock: number;
+  avgDaily: number;
+  total7DayDemand: number;
+  predictedQty: number;
+  unitPrice: number;
+  category: string;
+  urgency: 'critical' | 'warning';
+}
+
 
 export function Recommendations() {
+  const [products, setProducts] = React.useState<Product[]>([]);
+  const [forecastMap, setForecastMap] = React.useState<Record<number, Forecast[]>>({});
+  const [inventoryMap, setInventoryMap] = React.useState<Record<number, InventoryRecommendation>>({});
+  React.useEffect(() => {
+    async function loadData() {
+      const productsRes = await axios.get<Product[]>('http://localhost:5281/api/Product');
+      setProducts(productsRes.data);
+      console.log('Products loaded:', productsRes.data);
+
+      const inventoryRes = await axios.get<InventoryRecommendation[]>(
+        'http://localhost:5281/api/inventory/recommendations'
+      );
+
+      const inventoryObj: Record<number, InventoryRecommendation> = {};
+      inventoryRes.data.forEach(i => (inventoryObj[i.productId] = i));
+      setInventoryMap(inventoryObj);
+
+      const forecastObj: Record<number, Forecast[]> = {};
+      for (const p of productsRes.data) {
+        const res = await axios.get<Forecast[]>(
+          `http://localhost:5281/api/forecast/${p.productId}`
+        );
+        forecastObj[p.productId] = res.data;
+      }
+      setForecastMap(forecastObj);
+    }
+
+    loadData();
+  }, []);
+
   const navigate = useNavigate();
 
-  const totalReorderValue = recommendedReorders.reduce(
-    (sum, item) => sum + (item.recommendedQuantity * item.unitPrice),
-    0
+  const SAFETY_BUFFER_DAYS = 2;
+
+  const recommendations = useMemo<RecommendationItem[]>(() => {
+    return products
+      .map(product => {
+        const inventory = inventoryMap[product.productId];
+        if (!inventory) return null;
+
+        const forecast = forecastMap[product.productId] || [];
+        if (forecast.length === 0) return null;
+
+        const total7DayDemand = forecast.reduce(
+          (sum, f) => sum + f.predictedQty,
+          0
+        );
+
+        const avgDaily = total7DayDemand / forecast.length;
+        if (avgDaily === 0) return null;
+
+        const predictedDuringLead =
+          avgDaily * inventory.leadTimeDays;
+
+        if (predictedDuringLead <= inventory.currentStock) {
+          return null;
+        }
+
+        const daysOfStock =
+          inventory.currentStock / avgDaily;
+
+        const predictedQty = Math.ceil(
+          predictedDuringLead +
+          avgDaily * SAFETY_BUFFER_DAYS -
+          inventory.currentStock
+        );
+
+        const urgency: 'critical' | 'warning' =
+          daysOfStock < inventory.leadTimeDays
+            ? 'critical'
+            : 'warning';
+
+        return {
+          productId: product.productId,
+          name: product.productName,
+          currentStock: inventory.currentStock,
+          leadTime: inventory.leadTimeDays,
+          daysOfStock,
+          avgDaily,
+          total7DayDemand,
+          predictedQty: forecastMap[product.productId]?.[0]?.predictedQty || 0,
+          urgency,
+        };
+      })
+      .filter(
+        (item): item is RecommendationItem => item !== null
+      );
+  }, [products, forecastMap, inventoryMap]);
+
+
+
+
+
+  /* -----------------------
+     Summary Metrics
+  ----------------------- */
+
+  const criticalItems = useMemo(
+    () => recommendations.filter(r => r.urgency === 'critical'),
+    [recommendations]
   );
 
-  const criticalItems = recommendedReorders.filter(r => r.urgency === 'critical');
+  const getTotalPredictedDemand = (productId: number) =>
+    (forecastMap[productId] || []).reduce(
+      (sum, f) => sum + f.predictedQty,
+      0
+    );
+
+  const getAverageDailyDemand = (productId: number) => {
+    const total = getTotalPredictedDemand(productId);
+    return total / 7;
+  };
+
+  
+  const productPriceMap = useMemo(() => {
+    const map: Record<number, number> = {};
+    products.forEach(p => {
+      map[p.productId] = p.unitPrice;
+    });
+    return map;
+  }, [products]);
+  
+
+  const totalReorderValue = useMemo(() => {
+    return recommendations.reduce((sum, item) => {
+      const totalPredicted = getTotalPredictedDemand(item.productId);
+      const unitPrice = productPriceMap[item.productId] ?? 0;
+      const total= sum + totalPredicted * unitPrice;
+      console.log(total, item.name, totalPredicted, unitPrice);
+      return total;
+    }, 0);
+  }, [recommendations, productPriceMap]);
 
   return (
     <div className="space-y-6">
@@ -31,7 +190,7 @@ export function Recommendations() {
             <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </div>
           <p className="text-3xl font-semibold text-gray-900 dark:text-white">
-            {recommendedReorders.length}
+            {recommendations.length}
           </p>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             {criticalItems.length} critical
@@ -75,7 +234,7 @@ export function Recommendations() {
                 Critical Stock Alert
               </h3>
               <p className="text-sm text-red-800 dark:text-red-300">
-                {criticalItems.length} product{criticalItems.length > 1 ? 's have' : ' has'} insufficient stock 
+                {criticalItems.length} product{criticalItems.length > 1 ? 's have' : ' has'} insufficient stock
                 to cover predicted demand and lead time. Immediate action required to prevent stockouts.
               </p>
             </div>
@@ -84,21 +243,20 @@ export function Recommendations() {
       )}
 
       {/* Recommendations */}
-      {recommendedReorders.length > 0 ? (
+      {recommendations.length > 0 ? (
         <div className="space-y-4">
-          {recommendedReorders.map((item) => {
-            const totalPredicted = getTotalPredictedDemand(item);
-            const avgDaily = getAverageDailyDemand(item);
-            const orderValue = item.recommendedQuantity * item.unitPrice;
-            
+          {recommendations.map((item) => {
+            const totalPredicted = getTotalPredictedDemand(item.productId);
+            const avgDaily = getAverageDailyDemand(item.productId);
+            const orderValue = item.predictedQty * item.unitPrice;
+
             return (
-              <div 
-                key={item.id}
-                className={`bg-white dark:bg-gray-800 rounded-lg border-2 p-6 ${
-                  item.urgency === 'critical'
-                    ? 'border-red-300 dark:border-red-700'
-                    : 'border-yellow-300 dark:border-yellow-700'
-                }`}
+              <div
+                key={item.productId}
+                className={`bg-white dark:bg-gray-800 rounded-lg border-2 p-6 ${item.urgency === 'critical'
+                  ? 'border-red-300 dark:border-red-700'
+                  : 'border-yellow-300 dark:border-yellow-700'
+                  }`}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div>
@@ -106,11 +264,10 @@ export function Recommendations() {
                       <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                         {item.name}
                       </h3>
-                      <span className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full ${
-                        item.urgency === 'critical'
-                          ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                          : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-                      }`}>
+                      <span className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full ${item.urgency === 'critical'
+                        ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                        }`}>
                         {item.urgency === 'critical' ? (
                           <AlertCircle className="w-3 h-3 mr-1" />
                         ) : (
@@ -123,8 +280,8 @@ export function Recommendations() {
                       {item.category}
                     </p>
                   </div>
-                  <button 
-                    onClick={() => navigate(`/products/${item.id}`)}
+                  <button
+                    onClick={() => navigate(`/products/${item.productId}`)}
                     className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center"
                   >
                     View Details
@@ -135,12 +292,11 @@ export function Recommendations() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                   <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Current Stock</p>
-                    <p className={`text-lg font-bold ${
-                      item.urgency === 'critical' 
-                        ? 'text-red-600 dark:text-red-400' 
-                        : 'text-yellow-600 dark:text-yellow-400'
-                    }`}>
-                      {item.onHand} units
+                    <p className={`text-lg font-bold ${item.urgency === 'critical'
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-yellow-600 dark:text-yellow-400'
+                      }`}>
+                      {item.currentStock} units
                     </p>
                   </div>
                   <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
@@ -163,36 +319,32 @@ export function Recommendations() {
                   </div>
                 </div>
 
-                <div className={`p-4 rounded-lg ${
-                  item.urgency === 'critical'
-                    ? 'bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800'
-                    : 'bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800'
-                }`}>
+                <div className={`p-4 rounded-lg ${item.urgency === 'critical'
+                  ? 'bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800'
+                  : 'bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800'
+                  }`}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className={`text-sm font-semibold mb-1 ${
-                        item.urgency === 'critical' 
-                          ? 'text-red-900 dark:text-red-200' 
-                          : 'text-yellow-900 dark:text-yellow-200'
-                      }`}>
+                      <p className={`text-sm font-semibold mb-1 ${item.urgency === 'critical'
+                        ? 'text-red-900 dark:text-red-200'
+                        : 'text-yellow-900 dark:text-yellow-200'
+                        }`}>
                         Recommended Order Quantity
                       </p>
-                      <p className={`text-3xl font-bold ${
-                        item.urgency === 'critical' 
-                          ? 'text-red-600 dark:text-red-400' 
-                          : 'text-yellow-600 dark:text-yellow-400'
-                      }`}>
-                        {item.recommendedQuantity} units
+                      <p className={`text-3xl font-bold ${item.urgency === 'critical'
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-yellow-600 dark:text-yellow-400'
+                        }`}>
+                        {getTotalPredictedDemand(item.productId)} units
                       </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Estimated cost: ${orderValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        Estimated cost: ${totalReorderValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
-                    <button className={`px-6 py-3 text-white rounded-lg transition-colors font-semibold ${
-                      item.urgency === 'critical'
-                        ? 'bg-red-600 hover:bg-red-700'
-                        : 'bg-yellow-600 hover:bg-yellow-700'
-                    }`}>
+                    <button className={`px-6 py-3 text-white rounded-lg transition-colors font-semibold ${item.urgency === 'critical'
+                      ? 'bg-red-600 hover:bg-red-700'
+                      : 'bg-yellow-600 hover:bg-yellow-700'
+                      }`}>
                       Create Purchase Order
                     </button>
                   </div>
@@ -200,8 +352,8 @@ export function Recommendations() {
 
                 <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800">
                   <p className="text-sm text-blue-900 dark:text-blue-200">
-                    <strong>Analysis:</strong> With {item.daysOfStock.toFixed(1)} days of stock remaining and a {item.leadTime}-day lead time, 
-                    your stock will be depleted before the next shipment arrives. The AI predicts {totalPredicted} units of demand 
+                    <strong>Analysis:</strong> With {item.daysOfStock.toFixed(1)} days of stock remaining and a {item.leadTime}-day lead time,
+                    your stock will be depleted before the next shipment arrives. The AI predicts {totalPredicted} units of demand
                     over the next 7 days (avg {avgDaily.toFixed(1)} units/day).
                   </p>
                 </div>
@@ -216,14 +368,14 @@ export function Recommendations() {
             All Products Well Stocked
           </h3>
           <p className="text-sm text-green-800 dark:text-green-300">
-            Based on the 7-day demand predictions, all products have sufficient inventory levels. 
+            Based on the 7-day demand predictions, all products have sufficient inventory levels.
             No immediate reorders are required at this time.
           </p>
         </div>
       )}
 
       {/* Quick Actions */}
-      {recommendedReorders.length > 0 && (
+      {recommendations.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Quick Actions
