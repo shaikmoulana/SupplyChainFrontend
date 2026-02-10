@@ -54,7 +54,7 @@ export function Products() {
             unitPrice: p.unitPrice,
             onHand: inventory?.currentStock ?? 0,
             reorderLevel: inventory?.recommendedReorderQty ?? 0,
-            leadTime: 7, // static for now (can come from backend later)
+            leadTime: inventory?.leadTimeDays ?? 7, // static for now (can come from backend later)
             predicted7DayDemand: Math.round(predicted7DayDemand)
           };
         })

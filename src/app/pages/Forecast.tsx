@@ -210,7 +210,7 @@ const totalWeeklyDemandAllProducts = products.reduce(
             Total Predicted Demand
           </h3>
           <p className="text-3xl font-bold text-purple-600 dark:text-purple-400 mb-2">
-            {getProductTotalDemand(products[0]?.productId ?? 0).toFixed(0)}
+            {totalWeeklyDemandAllProducts.toFixed(0)}
           </p>
           <p className="text-sm text-purple-700 dark:text-purple-300">
             units across all products

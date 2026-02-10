@@ -27,14 +27,21 @@ interface RecommendationItem {
   name: string;
   currentStock: number;
   leadTime: number;
-  daysOfStock: number;
-  avgDaily: number;
-  total7DayDemand: number;
-  predictedQty: number;
+
+  avgDailyDemand: number;
+  leadTimeDemand: number;
+  safetyStock: number;
+
+  recommendedOrderQty: number;
+
   unitPrice: number;
+  reorderValue: number;
+
+  daysOfStock: number;
   category: string;
   urgency: 'critical' | 'warning';
 }
+
 
 
 export function Recommendations() {
@@ -76,56 +83,63 @@ export function Recommendations() {
     return products
       .map(product => {
         const inventory = inventoryMap[product.productId];
-        if (!inventory) return null;
+        const forecast = forecastMap[product.productId];
 
-        const forecast = forecastMap[product.productId] || [];
-        if (forecast.length === 0) return null;
+        if (!inventory || !forecast || forecast.length === 0) return null;
 
-        const total7DayDemand = forecast.reduce(
+        const totalDemand = forecast.reduce(
           (sum, f) => sum + f.predictedQty,
           0
         );
 
-        const avgDaily = total7DayDemand / forecast.length;
-        if (avgDaily === 0) return null;
+        const avgDailyDemand = totalDemand / forecast.length;
+        if (avgDailyDemand <= 0) return null;
 
-        const predictedDuringLead =
-          avgDaily * inventory.leadTimeDays;
+        const leadTimeDemand =
+          avgDailyDemand * inventory.leadTimeDays;
 
-        if (predictedDuringLead <= inventory.currentStock) {
-          return null;
-        }
+        const safetyStock =
+          avgDailyDemand * SAFETY_BUFFER_DAYS;
+
+        const recommendedOrderQty = Math.ceil(
+          leadTimeDemand + safetyStock - inventory.currentStock
+        );
+
+        if (recommendedOrderQty <= 0) return null;
 
         const daysOfStock =
-          inventory.currentStock / avgDaily;
-
-        const predictedQty = Math.ceil(
-          predictedDuringLead +
-          avgDaily * SAFETY_BUFFER_DAYS -
-          inventory.currentStock
-        );
+          inventory.currentStock / avgDailyDemand;
 
         const urgency: 'critical' | 'warning' =
           daysOfStock < inventory.leadTimeDays
             ? 'critical'
             : 'warning';
 
+        const unitPrice = product.unitPrice ?? 0;
+
         return {
           productId: product.productId,
           name: product.productName,
           currentStock: inventory.currentStock,
           leadTime: inventory.leadTimeDays,
+
+          avgDailyDemand,
+          leadTimeDemand,
+          safetyStock,
+
+          recommendedOrderQty,
+          unitPrice,
+          reorderValue: recommendedOrderQty * unitPrice,
+
           daysOfStock,
-          avgDaily,
-          total7DayDemand,
-          predictedQty: forecastMap[product.productId]?.[0]?.predictedQty || 0,
-          urgency,
+          urgency
         };
       })
       .filter(
         (item): item is RecommendationItem => item !== null
       );
-  }, [products, forecastMap, inventoryMap]);
+  }, [products, inventoryMap, forecastMap]);
+
 
 
 
@@ -151,7 +165,7 @@ export function Recommendations() {
     return total / 7;
   };
 
-  
+
   const productPriceMap = useMemo(() => {
     const map: Record<number, number> = {};
     products.forEach(p => {
@@ -159,17 +173,25 @@ export function Recommendations() {
     });
     return map;
   }, [products]);
-  
+
+
+  // const totalReorderValue = useMemo(() => {
+  //   return recommendations.reduce((sum, item) => {
+  //     const totalPredicted = getTotalPredictedDemand(item.productId);
+  //     const unitPrice = productPriceMap[item.productId] ?? 0;
+  //     const total = sum + totalPredicted * unitPrice;
+  //     console.log(total, item.name, totalPredicted, unitPrice);
+  //     return total;
+  //   }, 0);
+  // }, [recommendations, productPriceMap]);
 
   const totalReorderValue = useMemo(() => {
-    return recommendations.reduce((sum, item) => {
-      const totalPredicted = getTotalPredictedDemand(item.productId);
-      const unitPrice = productPriceMap[item.productId] ?? 0;
-      const total= sum + totalPredicted * unitPrice;
-      console.log(total, item.name, totalPredicted, unitPrice);
-      return total;
-    }, 0);
-  }, [recommendations, productPriceMap]);
+  return recommendations.reduce(
+    (sum, item) => sum + item.recommendedOrderQty * item.unitPrice,
+    0
+  );
+}, [recommendations]);
+
 
   return (
     <div className="space-y-6">
@@ -248,7 +270,7 @@ export function Recommendations() {
           {recommendations.map((item) => {
             const totalPredicted = getTotalPredictedDemand(item.productId);
             const avgDaily = getAverageDailyDemand(item.productId);
-            const orderValue = item.predictedQty * item.unitPrice;
+            const orderValue = item.recommendedOrderQty * item.unitPrice;
 
             return (
               <div
@@ -335,10 +357,10 @@ export function Recommendations() {
                         ? 'text-red-600 dark:text-red-400'
                         : 'text-yellow-600 dark:text-yellow-400'
                         }`}>
-                        {getTotalPredictedDemand(item.productId)} units
+                        {item.recommendedOrderQty} units
                       </p>
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Estimated cost: ${totalReorderValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        Estimated cost: ${item.reorderValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
                     <button className={`px-6 py-3 text-white rounded-lg transition-colors font-semibold ${item.urgency === 'critical'
