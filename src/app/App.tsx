@@ -5,6 +5,7 @@ import  {Products}  from './pages/Products';
 import { ProductDetails } from './pages/ProductDetails';
 import { Forecast } from './pages/Forecast';
 import { Recommendations } from './pages/Recommendations';
+import { CreatePurchaseOrder } from './pages/CreatePurchaseOrder';
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
           <Route path="/products/:id" element={<ProductDetails />} />
           <Route path="/forecast" element={<Forecast />} />
           <Route path="/recommendations" element={<Recommendations />} />
+          <Route path="/purchase-order" element={<CreatePurchaseOrder />} />
         </Routes>
       </Layout>
     </Router>

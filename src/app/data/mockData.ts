@@ -16,6 +16,105 @@ export interface Product {
   }>;
 }
 
+// Supplier interface
+export interface Supplier {
+  id: string;
+  name: string;
+  contact: string;
+  email: string;
+}
+
+// Supplier Product with supplier-specific cost
+export interface SupplierProduct {
+  id: string;
+  productId: string;
+  productName: string;
+  supplierId: string;
+  category: string;
+  supplierCost: number;
+  moq: number; // minimum order quantity
+  leadTime: number;
+}
+
+// Suppliers data
+export const suppliers: Supplier[] = [
+  {
+    id: 'S1',
+    name: 'Global Supplies Inc.',
+    contact: '+1 (555) 123-4567',
+    email: 'sales@globalsupplies.com',
+  },
+  {
+    id: 'S2',
+    name: 'Premium Parts Co.',
+    contact: '+1 (555) 987-6543',
+    email: 'orders@premiumparts.com',
+  },
+  {
+    id: 'S3',
+    name: 'Reliable Distributors',
+    contact: '+1 (555) 456-7890',
+    email: 'contact@reliabledist.com',
+  },
+];
+
+// Supplier Products data
+export const supplierProducts: SupplierProduct[] = [
+  // Global Supplies Inc. products
+  {
+    id: 'SP1',
+    productId: 'A',
+    productName: 'Product A',
+    supplierId: 'S1',
+    category: 'Category A',
+    supplierCost: 85.00,
+    moq: 50,
+    leadTime: 7,
+  },
+  {
+    id: 'SP2',
+    productId: 'B',
+    productName: 'Product B',
+    supplierId: 'S1',
+    category: 'Category B',
+    supplierCost: 125.00,
+    moq: 30,
+    leadTime: 10,
+  },
+  // Premium Parts Co. products
+  {
+    id: 'SP3',
+    productId: 'A',
+    productName: 'Product A',
+    supplierId: 'S2',
+    category: 'Category A',
+    supplierCost: 82.50,
+    moq: 100,
+    leadTime: 5,
+  },
+  {
+    id: 'SP4',
+    productId: 'B',
+    productName: 'Product B',
+    supplierId: 'S2',
+    category: 'Category B',
+    supplierCost: 130.00,
+    moq: 50,
+    leadTime: 8,
+  },
+  // Reliable Distributors products
+  {
+    id: 'SP5',
+    productId: 'A',
+    productName: 'Product A',
+    supplierId: 'S3',
+    category: 'Category A',
+    supplierCost: 87.00,
+    moq: 25,
+    leadTime: 10,
+  },
+];
+
 export const products: Product[] = [
   {
     id: 'A',

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, TrendingUp, FileText, Moon, Sun } from 'lucide-react';
+import { LayoutDashboard, Package, TrendingUp, FileText, Moon, Sun, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -11,6 +11,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { path: '/products', icon: Package, label: 'Products' },
     { path: '/forecast', icon: TrendingUp, label: 'Forecast & Analytics' },
     { path: '/recommendations', icon: FileText, label: 'Inventory Recommendations' },
+    { path: '/purchase-order', icon: ShoppingCart, label: 'Create Purchase Order' },
   ];
 
   return (
