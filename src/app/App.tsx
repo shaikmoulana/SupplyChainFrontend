@@ -6,6 +6,7 @@ import { ProductDetails } from './pages/ProductDetails';
 import { Forecast } from './pages/Forecast';
 import { Recommendations } from './pages/Recommendations';
 import { CreatePurchaseOrder } from './pages/CreatePurchaseOrder';
+import { PurchaseOrders } from './pages/PurchaseOrders';
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/forecast" element={<Forecast />} />
           <Route path="/recommendations" element={<Recommendations />} />
           <Route path="/purchase-order" element={<CreatePurchaseOrder />} />
+          <Route path="/purchase-orders" element={<PurchaseOrders />} />
         </Routes>
       </Layout>
     </Router>

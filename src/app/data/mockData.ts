@@ -115,6 +115,130 @@ export const supplierProducts: SupplierProduct[] = [
   },
 ];
 
+// Helper function to find the best supplier for a product
+export const getBestSupplierForProduct = (productId: string): SupplierProduct | null => {
+  const productSuppliers = supplierProducts.filter(sp => sp.productId === productId);
+  
+  if (productSuppliers.length === 0) return null;
+  
+  // Sort by cost (lowest first), then by lead time (fastest first)
+  return productSuppliers.sort((a, b) => {
+    if (a.supplierCost !== b.supplierCost) {
+      return a.supplierCost - b.supplierCost;
+    }
+    return a.leadTime - b.leadTime;
+  })[0];
+};
+
+// Purchase Order interface
+export interface PurchaseOrder {
+  id: string;
+  poNumber: string;
+  supplierId: string;
+  supplierName: string;
+  orderDate: string;
+  totalItems: number;
+  totalQuantity: number;
+  totalAmount: number;
+  status: 'Pending' | 'Approved' | 'Shipped' | 'Delivered' | 'Cancelled';
+  items: Array<{
+    productName: string;
+    quantity: number;
+    unitCost: number;
+    totalCost: number;
+  }>;
+}
+
+// Mock Purchase Orders data
+export const purchaseOrders: PurchaseOrder[] = [
+  {
+    id: 'PO001',
+    poNumber: 'PO-2024-001',
+    supplierId: 'S1',
+    supplierName: 'Global Supplies Inc.',
+    orderDate: '2024-02-20T10:30:00',
+    totalItems: 2,
+    totalQuantity: 150,
+    totalAmount: 16250.00,
+    status: 'Delivered',
+    items: [
+      { productName: 'Product A', quantity: 100, unitCost: 85.00, totalCost: 8500.00 },
+      { productName: 'Product B', quantity: 50, unitCost: 125.00, totalCost: 6250.00 },
+    ],
+  },
+  {
+    id: 'PO002',
+    poNumber: 'PO-2024-002',
+    supplierId: 'S2',
+    supplierName: 'Premium Parts Co.',
+    orderDate: '2024-02-22T14:15:00',
+    totalItems: 1,
+    totalQuantity: 200,
+    totalAmount: 16500.00,
+    status: 'Shipped',
+    items: [
+      { productName: 'Product A', quantity: 200, unitCost: 82.50, totalCost: 16500.00 },
+    ],
+  },
+  {
+    id: 'PO003',
+    poNumber: 'PO-2024-003',
+    supplierId: 'S1',
+    supplierName: 'Global Supplies Inc.',
+    orderDate: '2024-02-23T09:00:00',
+    totalItems: 1,
+    totalQuantity: 75,
+    totalAmount: 9375.00,
+    status: 'Approved',
+    items: [
+      { productName: 'Product B', quantity: 75, unitCost: 125.00, totalCost: 9375.00 },
+    ],
+  },
+  {
+    id: 'PO004',
+    poNumber: 'PO-2024-004',
+    supplierId: 'S3',
+    supplierName: 'Reliable Distributors',
+    orderDate: '2024-02-23T16:45:00',
+    totalItems: 1,
+    totalQuantity: 50,
+    totalAmount: 4350.00,
+    status: 'Pending',
+    items: [
+      { productName: 'Product A', quantity: 50, unitCost: 87.00, totalCost: 4350.00 },
+    ],
+  },
+  {
+    id: 'PO005',
+    poNumber: 'PO-2024-005',
+    supplierId: 'S2',
+    supplierName: 'Premium Parts Co.',
+    orderDate: '2024-02-24T11:20:00',
+    totalItems: 2,
+    totalQuantity: 250,
+    totalAmount: 27000.00,
+    status: 'Pending',
+    items: [
+      { productName: 'Product A', quantity: 150, unitCost: 82.50, totalCost: 12375.00 },
+      { productName: 'Product B', quantity: 100, unitCost: 130.00, totalCost: 13000.00 },
+    ],
+  },
+  {
+    id: 'PO006',
+    poNumber: 'PO-2024-006',
+    supplierId: 'S1',
+    supplierName: 'Global Supplies Inc.',
+    orderDate: '2024-02-18T13:30:00',
+    totalItems: 1,
+    totalQuantity: 30,
+    totalAmount: 3750.00,
+    status: 'Cancelled',
+    items: [
+      { productName: 'Product B', quantity: 30, unitCost: 125.00, totalCost: 3750.00 },
+    ],
+  },
+];
+
 export const products: Product[] = [
   {
     id: 'A',

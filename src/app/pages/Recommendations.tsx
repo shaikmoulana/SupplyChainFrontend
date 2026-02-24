@@ -2,6 +2,9 @@ import { AlertCircle, Clock, TrendingUp, Package, CheckCircle, ArrowRight } from
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import React, { useMemo } from 'react';
+import { recommendedReorders, products, getTotalPredictedDemand, getAverageDailyDemand, getBestSupplierForProduct } from '../data/mockData';
+import { Button } from '../components/ui/button';
+
 
 interface Product {
   productId: number;
@@ -185,6 +188,20 @@ export function Recommendations() {
   //   }, 0);
   // }, [recommendations, productPriceMap]);
 
+  const handleCreatePurchaseOrder = (productId: string, recommendedQuantity: number) => {
+    const bestSupplier = getBestSupplierForProduct(productId);
+    if (bestSupplier) {
+      navigate('/purchase-order', {
+        state: {
+          prefilledCart: {
+            supplierProduct: bestSupplier,
+            quantity: recommendedQuantity,
+          },
+        },
+      });
+    }
+  };
+
   const totalReorderValue = useMemo(() => {
   return recommendations.reduce(
     (sum, item) => sum + item.recommendedOrderQty * item.unitPrice,
@@ -363,12 +380,16 @@ export function Recommendations() {
                         Estimated cost: ${item.reorderValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
-                    <button className={`px-6 py-3 text-white rounded-lg transition-colors font-semibold ${item.urgency === 'critical'
-                      ? 'bg-red-600 hover:bg-red-700'
-                      : 'bg-yellow-600 hover:bg-yellow-700'
-                      }`}>
+                    <Button
+                      onClick={() => handleCreatePurchaseOrder("A", item.recommendedOrderQty)}
+                      className={`px-6 py-3 text-white rounded-lg transition-colors font-semibold ${
+                        item.urgency === 'critical'
+                          ? 'bg-red-600 hover:bg-red-700'
+                          : 'bg-yellow-600 hover:bg-yellow-700'
+                      }`}
+                    >
                       Create Purchase Order
-                    </button>
+                    </Button>
                   </div>
                 </div>
 

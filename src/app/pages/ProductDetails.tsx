@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Package, TrendingUp, Clock, AlertCircle, Target } from 'lucide-react';
-import { products, getTotalPredictedDemand, getAverageDailyDemand, getRecommendedReorderQuantity } from '../data/mockData';
+import { products as mockproducts, getTotalPredictedDemand, getAverageDailyDemand, getRecommendedReorderQuantity, getBestSupplierForProduct } from '../data/mockData';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart, ComposedChart } from 'recharts';
+import { Button } from '../components/ui/button';
 
 interface Prediction {
   day: string;
@@ -27,6 +28,7 @@ export function ProductDetails() {
   const navigate = useNavigate();
   const [product, setProduct] = useState<ProductDetailsUI | null>(null);
   const [loading, setLoading] = useState(true);
+  const mockproduct = mockproducts.find(p => p.id === id);
 
    useEffect(() => {
     if (id) loadProductDetails(Number(id));
@@ -109,6 +111,35 @@ export function ProductDetails() {
   const recommendedQty = Math.max(totalPredicted - product.onHand, 0);
   const needsReorder = recommendedQty > 0;
   const daysOfStock = product.onHand / avgDailyDemand;
+
+
+  // const totalPredicted = getTotalPredictedDemand(mockproduct);
+  // const avgDailyDemand = getAverageDailyDemand(mockproduct);
+  // const recommendedQty = getRecommendedReorderQuantity(mockproduct);
+  // const needsReorder = recommendedQty > 0;
+  // const daysOfStock = product.onHand / avgDailyDemand;
+  const bestSupplier = getBestSupplierForProduct("A");
+  // const bestSupplier = {
+  //   supplierId: "SP1",
+  //   productId: "A",
+  //   supplierCost: 85,
+  //   leadTime: 7,
+  //   quantity: recommendedQty,
+  //   }
+
+
+  const handleCreatePurchaseOrder = () => {
+    if (bestSupplier) {
+      navigate('/purchase-order', {
+        state: {
+          prefilledCart: {
+            supplierProduct: bestSupplier,
+            quantity: recommendedQty,
+          },
+        },
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -379,9 +410,12 @@ export function ProductDetails() {
                 Estimated cost: ${(recommendedQty * product.unitPrice).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </p>
             </div>
-            <button className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+            <Button
+              onClick={handleCreatePurchaseOrder}
+              className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
               Create Purchase Order
-            </button>
+            </Button>
           </div>
         </div>
       )}

@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { ShoppingCart, FileText, Plus, Trash2, Package } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { ShoppingCart, FileText, Plus, Trash2, Package, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -21,9 +22,19 @@ interface CartItem {
 }
 
 export function CreatePurchaseOrder() {
+  const location = useLocation();
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
+
+  // Handle pre-filled cart from navigation
+  useEffect(() => {
+    if (location.state?.prefilledCart) {
+      const { supplierProduct, quantity } = location.state.prefilledCart;
+      setSelectedSupplierId(supplierProduct.supplierId);
+      setCart([{ supplierProduct, quantity }]);
+    }
+  }, [location.state]);
 
   // Filter products by selected supplier
   const filteredProducts = selectedSupplierId
