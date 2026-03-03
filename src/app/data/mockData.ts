@@ -20,8 +20,13 @@ export interface Product {
 export interface Supplier {
   id: string;
   name: string;
+  contactPerson: string;
   contact: string;
   email: string;
+  phone: string;
+  address: string;
+  leadTime: number;
+  status: 'Active' | 'Inactive';
 }
 
 // Supplier Product with supplier-specific cost
@@ -41,20 +46,35 @@ export const suppliers: Supplier[] = [
   {
     id: 'S1',
     name: 'Global Supplies Inc.',
+    contactPerson: 'John Doe',
     contact: '+1 (555) 123-4567',
     email: 'sales@globalsupplies.com',
+    phone: '+1 (555) 123-4567',
+    address: '123 Supply St, City, Country',
+    leadTime: 7,
+    status: 'Active',
   },
   {
     id: 'S2',
     name: 'Premium Parts Co.',
+    contactPerson: 'Jane Smith',
     contact: '+1 (555) 987-6543',
     email: 'orders@premiumparts.com',
+    phone: '+1 (555) 987-6543',
+    address: '456 Parts Ave, City, Country',
+    leadTime: 5,
+    status: 'Active',
   },
   {
     id: 'S3',
     name: 'Reliable Distributors',
+    contactPerson: 'Alice Johnson',
     contact: '+1 (555) 456-7890',
     email: 'contact@reliabledist.com',
+    phone: '+1 (555) 456-7890',
+    address: '789 Distribute Rd, City, Country',
+    leadTime: 10,
+    status: 'Active',
   },
 ];
 

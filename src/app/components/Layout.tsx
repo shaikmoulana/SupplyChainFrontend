@@ -1,10 +1,25 @@
-import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, TrendingUp, FileText, Moon, Sun, ShoppingCart, ListOrdered } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Package, TrendingUp, FileText, Moon, Sun, ShoppingCart, ListOrdered, LogOut, User, Building2, Truck, PackageCheck, Ship, MapPin } from 'lucide-react';
 import { useState } from 'react';
+import { Button } from './ui/button';
 
-export function Layout({ children }: { children: React.ReactNode }) {
+interface LayoutProps {
+  children: React.ReactNode;
+  onLogout: () => void;
+}
+
+export function Layout({ children, onLogout }: LayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [darkMode, setDarkMode] = useState(false);
+  const userEmail = localStorage.getItem('userEmail') || 'user@miraclesoft.com';
+
+  const handleLogout = () => {
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('userEmail');
+    onLogout();
+    navigate('/login');
+  };
 
   const navItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -13,6 +28,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
     { path: '/recommendations', icon: FileText, label: 'Inventory Recommendations' },
     { path: '/purchase-order', icon: ShoppingCart, label: 'Create Purchase Order' },
     { path: '/purchase-orders', icon: ListOrdered, label: 'Purchase Orders' },
+    { path: '/suppliers', icon: Building2, label: 'Suppliers' },
+    { path: '/supplier-processing', icon: Truck, label: 'Supplier Processing' },
+    { path: '/goods-inward', icon: PackageCheck, label: 'Goods Inward' },
+    { path: '/order-fulfillment', icon: Package, label: 'Order Fulfillment' },
+    { path: '/shipping', icon: Ship, label: 'Shipping' },
+    { path: '/delivery', icon: MapPin, label: 'Delivery' },
   ];
 
   return (
@@ -68,6 +89,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   {darkMode ? 'Light Mode' : 'Dark Mode'}
                 </span>
               </button>
+              <div className="mt-4">
+                <div className="flex items-center">
+                  <User className="w-5 h-5 mr-3" />
+                  <span className="text-sm font-medium">{userEmail}</span>
+                </div>
+                <Button
+                  onClick={handleLogout}
+                  className="mt-2 w-full"
+                >
+                  <LogOut className="w-5 h-5 mr-3" />
+                  Logout
+                </Button>
+              </div>
             </div>
           </div>
         </aside>
